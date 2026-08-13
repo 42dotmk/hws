@@ -1,7 +1,7 @@
 # hws
 
 A niri-style workspace/window overview for X11, built as a companion to
-[hwm](../hwm) but speaking plain EWMH — it works under any EWMH window
+[hwm](https://github.com/42dotmk/hwm) but speaking plain EWMH — it works under any EWMH window
 manager.
 
 Run it and a fullscreen overlay shows every workspace as a row of window
