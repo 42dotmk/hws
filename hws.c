@@ -90,13 +90,14 @@ static int rowoff;        /* vertical scroll of the row list */
 static long curdesk;
 static Window initialactive; /* focus to restore when cancelling */
 static Window lastfocused;   /* what the WM currently focuses */
+static Window pausewin;      /* OR dialog (hmenu, ...) we yielded input to */
 static int damagebase = -1;
 static int redirected;
 static int titleh;
 static int dirty = 1;
 static int running = 1;
 static Atom netclientlist, netwmdesktop, netcurdesktop, netactivewindow,
-    netwmname, utf8;
+    netwmname, netwmwindowtype, netwmtypedialog, utf8;
 
 static void die(const char *msg) {
   fprintf(stderr, "%s\n", msg);
@@ -164,6 +165,23 @@ static void gettitle(Window w, char *buf, size_t len) {
   for (i = 0; buf[i]; i++) /* core fonts can't draw multibyte text */
     if ((unsigned char)buf[i] > 126 || (unsigned char)buf[i] < 32)
       buf[i] = '?';
+}
+
+static int isdialog(Window w) {
+  Atom real;
+  int fmt, found = 0;
+  unsigned long n, i, extra;
+  unsigned char *p = NULL;
+
+  if (XGetWindowProperty(dpy, w, netwmwindowtype, 0L, 8L, False, XA_ATOM,
+                         &real, &fmt, &n, &extra, &p) == Success &&
+      p) {
+    for (i = 0; i < n; i++)
+      if (((Atom *)p)[i] == netwmtypedialog)
+        found = 1;
+    XFree(p);
+  }
+  return found;
 }
 
 static int thumbidx(Window w) {
@@ -311,6 +329,7 @@ static void readmodel(void) {
 static void layout(void);
 static void selectrow(int nr);
 static void grabkb(void);
+static void grabinput(void);
 
 /* re-read everything (new/closed windows), keeping the selection */
 static void rebuild(void) {
@@ -421,7 +440,9 @@ static void render(void) {
   const char *title;
   int i, j, ty;
 
-  XRaiseWindow(dpy, overlay); /* forwarded commands may raise windows */
+  if (!pausewin) /* forwarded commands may raise windows; stay on top,
+                  * but never above a dialog we yielded input to */
+    XRaiseWindow(dpy, overlay);
   XSetForeground(dpy, gc, bgpx);
   XFillRectangle(dpy, backbuf, gc, 0, 0, (unsigned int)mw, (unsigned int)mh);
   for (i = 0; i < nrows; i++) {
@@ -687,8 +708,25 @@ static void handle(XEvent *ev) {
       layout();
     }
     break;
+  case MapNotify:
+    /* an override-redirect dialog (hmenu, a pinentry, ...) mapping on top
+     * of the overlay gets the input: drop our grabs until it goes away */
+    if (!pausewin && ev->xmap.override_redirect &&
+        ev->xmap.window != overlay && isdialog(ev->xmap.window)) {
+      pausewin = ev->xmap.window;
+      XUngrabKeyboard(dpy, CurrentTime);
+      XUngrabPointer(dpy, CurrentTime);
+    }
+    break;
   case UnmapNotify:
   case DestroyNotify:
+    if (pausewin == (ev->type == UnmapNotify ? ev->xunmap.window
+                                             : ev->xdestroywindow.window)) {
+      pausewin = None;
+      grabinput();
+      dirty = 1;
+      break;
+    }
     i = thumbidx(ev->type == UnmapNotify ? ev->xunmap.window
                                          : ev->xdestroywindow.window);
     if (i >= 0) {
@@ -794,6 +832,8 @@ static void setup(void) {
   netcurdesktop = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
   netactivewindow = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
   netwmname = XInternAtom(dpy, "_NET_WM_NAME", False);
+  netwmwindowtype = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
+  netwmtypedialog = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
   utf8 = XInternAtom(dpy, "UTF8_STRING", False);
   /* NameWindowPixmap needs Composite >= 0.2 */
   if (XCompositeQueryExtension(dpy, &evbase, &errbase) &&
@@ -850,7 +890,7 @@ static void setup(void) {
   }
   initialactive = active;
   lastfocused = active;
-  XSelectInput(dpy, root, PropertyChangeMask);
+  XSelectInput(dpy, root, PropertyChangeMask | SubstructureNotifyMask);
   XMapRaised(dpy, overlay);
   grabinput();
 }
