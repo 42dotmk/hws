@@ -29,6 +29,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifndef HWS_VERSION
+#define HWS_VERSION "dev"
+#endif
+
 /* config */
 static const char col_bg[] = "#1a1b26";     /* overlay background */
 static const char col_row[] = "#24283b";    /* selected row slab */
@@ -924,9 +928,15 @@ static void run(void) {
   }
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
   int i;
 
+  if (argc == 2 && !strcmp(argv[1], "-v")) {
+    printf("hws %s\n", HWS_VERSION);
+    return 0;
+  }
+  if (argc > 1)
+    die("usage: hws [-v]");
   setup();
   run();
   for (i = 0; i < nthumbs; i++)
