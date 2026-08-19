@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     make install    # symlinks it into ~/.local/bin
     make clean
 
-Single C99 file, no tests, no lint target. Requires Xlib plus the Xrender, Xcomposite, Xdamage, Xfixes, Xrandr, and Xtst extension libraries (see LDLIBS in the makefile). The style is suckless-like: `-std=c99 -pedantic -Wall -Wextra`, static globals, fixed-size arrays (`MAXWIN`, `MAXWS`), config as `static const` values at the top of hws.c — keep changes in that idiom. Running `hws` requires a live X11 session with an EWMH window manager, so manual testing usually can't happen inside this sandbox.
+Single C11 file, no tests, no lint target. Requires Xlib plus the Xrender, Xcomposite, Xdamage, Xfixes, Xrandr, and Xtst extension libraries (see LDLIBS in the makefile). The style is suckless-like: `-std=c11 -pedantic -Wall -Wextra`, static globals, fixed-size arrays (`MAXWIN`, `MAXWS`), config as `static const` values in `config.h` (included by hws.c) — keep changes in that idiom. Running `hws` requires a live X11 session with an EWMH window manager, so manual testing usually can't happen inside this sandbox.
 
 ## What it is
 

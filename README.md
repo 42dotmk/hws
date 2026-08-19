@@ -39,7 +39,7 @@ overview, which tracks the changes live. Tab and Escape always stay local.
     make && make install    # symlinks into ~/.local/bin
 
 Needs Xlib, XComposite, XDamage, XRender, XRandR. Bind it in hwm's
-`config.c`, e.g. `{ MODKEY, XK_Tab, spawn, { .v = switchercmd } }` with
+`config.h`, e.g. `{ MODKEY, XK_Tab, spawn, { .v = switchercmd } }` with
 `static const char *switchercmd[] = { "hws", NULL };`.
 
 ## How selection works
